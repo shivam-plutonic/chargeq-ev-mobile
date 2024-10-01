@@ -18,7 +18,7 @@ export default class Configuration {
     {
       id: '127.0.0.1:8080',
       name: 'localhost',
-      endpoint: 'http://localhost:8020'
+      endpoint: 'http://demo.chargeq.energy'
     },
     {
       id: '10.0.2.2:8080',

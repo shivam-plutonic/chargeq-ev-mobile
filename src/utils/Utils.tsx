@@ -547,6 +547,11 @@ export default class Utils {
     route: any, name: string, defaultValue: string | boolean | Record<any, any>, removeValue = false
   ): string | number | boolean | Record<string, unknown> | [] {
     const params: any = route?.params?.params ?? route?.params;
+     if (params && params[name] === 'undefined') {
+        params[name] = 'demo';  // Set tenantSubDomain to 'demo' if it's 'undefined'
+        console.log('ayush');
+      }
+    console.log(params, 'params');
     // Has param object?
     if (!params) {
       return defaultValue;

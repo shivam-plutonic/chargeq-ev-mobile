@@ -113,6 +113,8 @@ export default class AddEditTenantDialog extends React.Component<Props, State> {
     this.setState({
       newTenantSubDomain: this.tenant?.subdomain,
       newTenantName: this.tenant?.name,
+//       newTenantName: "demo",          ayush change
+//       newTenantSubDomain: "demo",
       newTenantEndpointCloud,
       userEndpoints
     });
@@ -414,6 +416,7 @@ export default class AddEditTenantDialog extends React.Component<Props, State> {
       name,
       endpoint: endpointCloud
     };
+console.log(newTenant, 'newtenenat  ayush');
     if (formIsValid) {
       // Save
       tenants.push(newTenant);

@@ -3,6 +3,7 @@ import Car from './Car';
 import CreatedUpdatedProps from './CreatedUpdatedProps';
 import ListItem from './ListItem';
 import Tag from './Tag';
+import Wallet from './wallet';
 import { StartTransactionErrorCode } from './Transaction';
 
 export default interface User extends CreatedUpdatedProps, ListItem {
@@ -14,6 +15,7 @@ export default interface User extends CreatedUpdatedProps, ListItem {
   locale: string;
   plateID?: string;
   address?: Address;
+  wallet: Wallet;
   image?: string;
   notificationsActive?: boolean;
   iNumber?: string;

@@ -274,7 +274,7 @@ export default class Sites extends BaseAutoRefreshScreen<Props, State> {
     const { loading, skip, count, showMap, selectedSite, refreshing, sites } = this.state;
     return (
       <View style={style.container}>
-        <HeaderComponent
+      <HeaderComponent
           sideBar={this.canOpenDrawer}
           navigation={navigation}
           title={I18n.t('sidebar.sites')}

@@ -296,54 +296,130 @@ export default class CentralServerProvider {
     this.password = null;
   }
 
-  public async login(email: string, password: string, acceptEula: boolean, tenantSubDomain: string): Promise<void> {
-    this.debugMethod('login');
-    // Get the Tenant
-    const tenant = await this.getTenant(tenantSubDomain);
-    this.tenant = tenant;
-    // Call
-    const result = await this.axiosInstance.post<any>(
-      `${this.buildRestServerAuthURL(tenant)}/${RESTServerRoute.REST_SIGNIN}`,
-      {
-        acceptEula,
+
+  public async verifyOtp(mobile: string, otp: string, acceptEula: boolean, tenantSubDomain: string): Promise<void> {
+      this.debugMethod('verifyOtp');
+  //     this.debugMethod('login');
+      // Get the Tenant
+      const tenant = await this.getTenant(tenantSubDomain);
+
+      this.tenant = tenant;
+      // Call
+      const result = await this.axiosInstance.post<any>(
+        `${this.buildRestServerAuthURL(tenant)}/${RESTServerRoute.REST_VERIFY_OTP}`,
+        {
+          acceptEula,
+          mobile,
+          otp,
+          tenant: tenantSubDomain
+        },
+        { headers: this.buildHeaders() }
+      );
+      // Keep them
+//       this.mobile = mobile;
+//       this.otp = otp;
+      this.token = result.data.token;
+      this.decodedToken = jwtDecode(this.token);
+      this.locale = this.decodedToken.locale;
+      this.currency = this.decodedToken.currency;
+      this.securityProvider = new SecurityProvider(this.decodedToken);
+      // Save
+      await SecuredStorage.saveUserCredentials(tenantSubDomain, {
+//         mobile,
+//         otp,
+        tenantSubDomain,
+        token: result.data.token,
+        locale: this.decodedToken.locale,
+        currency: this.decodedToken.currency
+      });
+      // Adjust the language according the device default
+      I18nManager.switchLanguage(this.getUserLanguage(), this.currency);
+      try {
+        // Save the User's token
+        await this.saveUserMobileData(this.getUserInfo().id, {
+          mobileToken: Notifications.getToken(),
+          mobileOS: Platform.OS,
+          mobileAppName: getApplicationName(),
+          mobileVersion: getVersion(),
+          mobileBundleID: getBundleId()
+        });
+      } catch (error) {
+        console.log('Error saving Mobile Token:', error);
+      }
+    }
+
+
+
+public async login(email: string, password: string, acceptEula: boolean, tenantSubDomain: string): Promise<void> {
+      this.debugMethod('login');
+  //     this.debugMethod('login');
+      // Get the Tenant
+      const tenant = await this.getTenant(tenantSubDomain);
+
+      this.tenant = tenant;
+      // Call
+      const result = await this.axiosInstance.post<any>(
+        `${this.buildRestServerAuthURL(tenant)}/${RESTServerRoute.REST_SIGNIN}`,
+        {
+          acceptEula,
+          email,
+          password,
+          tenant: tenantSubDomain
+        },
+        { headers: this.buildHeaders() }
+      );
+      // Keep them
+      this.email = email;
+      this.password = password;
+      this.token = result.data.token;
+      this.decodedToken = jwtDecode(this.token);
+      this.locale = this.decodedToken.locale;
+      this.currency = this.decodedToken.currency;
+      this.securityProvider = new SecurityProvider(this.decodedToken);
+      // Save
+      await SecuredStorage.saveUserCredentials(tenantSubDomain, {
         email,
         password,
-        tenant: tenantSubDomain
-      },
-      { headers: this.buildHeaders() }
-    );
-    // Keep them
-    this.email = email;
-    this.password = password;
-    this.token = result.data.token;
-    this.decodedToken = jwtDecode(this.token);
-    this.locale = this.decodedToken.locale;
-    this.currency = this.decodedToken.currency;
-    this.securityProvider = new SecurityProvider(this.decodedToken);
-    // Save
-    await SecuredStorage.saveUserCredentials(tenantSubDomain, {
-      email,
-      password,
-      tenantSubDomain,
-      token: result.data.token,
-      locale: this.decodedToken.locale,
-      currency: this.decodedToken.currency
-    });
-    // Adjust the language according the device default
-    I18nManager.switchLanguage(this.getUserLanguage(), this.currency);
-    try {
-      // Save the User's token
-      await this.saveUserMobileData(this.getUserInfo().id, {
-        mobileToken: Notifications.getToken(),
-        mobileOS: Platform.OS,
-        mobileAppName: getApplicationName(),
-        mobileVersion: getVersion(),
-        mobileBundleID: getBundleId()
+        tenantSubDomain,
+        token: result.data.token,
+        locale: this.decodedToken.locale,
+        currency: this.decodedToken.currency
       });
-    } catch (error) {
-      console.log('Error saving Mobile Token:', error);
+      // Adjust the language according the device default
+      I18nManager.switchLanguage(this.getUserLanguage(), this.currency);
+      try {
+        // Save the User's token
+        await this.saveUserMobileData(this.getUserInfo().id, {
+          mobileToken: Notifications.getToken(),
+          mobileOS: Platform.OS,
+          mobileAppName: getApplicationName(),
+          mobileVersion: getVersion(),
+          mobileBundleID: getBundleId()
+        });
+      } catch (error) {
+        console.log('Error saving Mobile Token:', error);
+      }
     }
-  }
+
+
+  public async sendOtp(mobile: string, acceptEula: boolean, tenantSubDomain: string): Promise<void> {
+      this.debugMethod('sendOtp');
+  //     this.debugMethod('login');
+      // Get the Tenant
+      const tenant = await this.getTenant(tenantSubDomain);
+
+      this.tenant = tenant;
+      // Call
+      const result = await this.axiosInstance.post<any>(
+        `${this.buildRestServerAuthURL(tenant)}/${RESTServerRoute.REST_SIGNIN_OTP}`,
+        {
+          acceptEula,
+          mobile,
+          tenant: tenantSubDomain
+        },
+        { headers: this.buildHeaders() }
+      );
+    }
 
   public async getEndUserLicenseAgreement(params: { Language: string }): Promise<Eula> {
     this.debugMethod('getEndUserLicenseAgreement');
@@ -531,6 +607,8 @@ export default class CentralServerProvider {
     );
     return result.data;
   }
+
+
 
   public async getSites(params = {}, paging: PagingParams = Constants.DEFAULT_PAGING, sorting: string[] = []): Promise<DataResult<Site>> {
     this.debugMethod('getSites');
@@ -916,6 +994,91 @@ export default class CentralServerProvider {
     );
     return result.data;
   }
+    // wallet api
+
+  public async getWalletBalance(id : string): Observable<any> {
+         this.debugMethod('getWalletBalance', id);
+
+          const params ={ id : id};
+         const result = await this.axiosInstance.get<any>(
+               this.buildRestEndpointUrl(RESTServerRoute.WALLET_BALANCE, { id }),
+               {
+                 headers: this.buildSecuredHeaders(),
+                 params
+               }
+             );
+return result.data;
+  }
+
+  public async checkTransactionStatus(orderId : string, id : string): Observable<any> {
+           this.debugMethod('checkTransactionStatus', id);
+
+            const params ={orderId: orderId, userId: id};
+           const result = await this.axiosInstance.get<any>(
+                 this.buildRestEndpointUrl(RESTServerRoute.TRANSACTION_STATUS),
+                 {
+                   headers: this.buildSecuredHeaders(),
+                   params
+                 }
+               );
+  return result.data;
+    }
+
+
+
+
+  public async getWalletTransaction(userID : string, startDate: string, endDate: string): Observable<any> {
+       this.debugMethod('getWalletTransaction');
+       const params ={ userID: userID, startDate:startDate, endDate: endDate};
+       console.log(params, 'params ayush');
+       const result = await this.axiosInstance.get<any>(
+                     this.buildRestEndpointUrl(RESTServerRoute.WALLET_TRANSACTION, { userID }),
+                     {
+                       headers: this.buildSecuredHeaders(),
+                       params
+                     }
+                   );
+      return result.data;
+    }
+
+public async rechargeWallet(userID : string, rechargeAmount: number): Observable<any> {
+
+     this.debugMethod('rechargeWallet');
+           const params ={ userID: userID, amount :rechargeAmount};
+           console.log(params, 'params ayush');
+           const result = await this.axiosInstance.get<any>(
+                         this.buildRestEndpointUrl(RESTServerRoute.WALLET_RECHARGE, { userID }),
+                         {
+                           headers: this.buildSecuredHeaders(),
+                           params
+                         }
+                       );
+          return result.data;
+//     // Verify init
+//     this.checkInit();
+//     if (!userID) {
+//       return EMPTY;
+//     }
+//     console.log(userID, 'inside wallete Recharge');
+//     // Set the tenant
+//     const tenant = this.windowService.getSubdomain();
+//     // params['tenant'] = tenant;
+//     console.log(tenant, 'tenant called');
+//     const params ={ userID: userID, tenant: tenant, amount :rechargeAmount};
+//     // Execute the REST service
+//     const url = this.buildRestEndpointUrl(RESTServerRoute.WALLET_RECHARGE);
+//     // console.log(url, 'url');
+//     const data=  this.httpClient.get<any>(url,
+//       {
+//         headers: this.buildHttpHeaders(),
+//         params
+//       })
+//       .pipe(
+//         catchError(this.handleHttpError),
+//       );
+//     console.log(data);
+//     return data;
+  }
 
   public async getSiteImage(id: string): Promise<string> {
     this.debugMethod('getSiteImage');
@@ -1146,6 +1309,7 @@ export default class CentralServerProvider {
   }
 
   private buildRestServerAuthURL(tenant: TenantConnection): string {
+      console.log(tenant, 'tenant');
     return (tenant?.endpoint?.endpoint) + '/v1/auth';
   }
 

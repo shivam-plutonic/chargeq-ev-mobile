@@ -59,6 +59,7 @@ export default function computeStyleSheet(): StyleSheet.NamedStyles<any> {
       fontSize: scale(12),
       color: commonColor.textColor
     },
+
     buttonSeparatorLine: {
       width: '50%',
       borderTopWidth: 0.5,

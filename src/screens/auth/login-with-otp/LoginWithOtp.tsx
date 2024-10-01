@@ -39,6 +39,9 @@ interface State {
   eula?: boolean;
   password?: string;
   email?: string;
+  mobile?: string;
+  otp?: string;
+  sentOtp?: boolean;
   tenantName?: string;
   tenantSubDomain?: string;
   tenantLogo?: string;
@@ -48,25 +51,23 @@ interface State {
   showNoTenantFoundDialog: boolean;
 }
 
-export default class Login extends BaseScreen<Props, State> {
+export default class LoginWithOtp extends BaseScreen<Props, State> {
   public state: State;
   public props: Props;
   private tenants: TenantConnection[] = [];
-
-//   public tenants: TenantConnection[] = [];   ayush change back
   private passwordInput: TextInput;
   private authService: AuthService;
 
   public constructor(props: Props) {
     super(props);
-//      const tenantSubDomain = Utils.getParamFromNavigation(this.props.route, 'tenantSubDomain', '');
-//      const finalTenantSubDomain =  'demo';
     this.state = {
       activeFab: false,
       eula: false,
       password: null,
-      email: Utils.getParamFromNavigation(this.props.route, 'email', '') as string,
-//       tenantSubDomain: Utils.getParamFromNavigation(this.props.route, 'tenantSubDomain', '') as string,
+      sentOtp: false,
+      mobile: null,
+      otp: null,
+//       email: Utils.getParamFromNavigation(this.props.route, 'email', '') as string,
       tenantSubDomain: Utils.getParamFromNavigation(this.props.route, 'tenantSubDomain', '') as string,
       tenantName: I18n.t('authentication.tenant'),
       loggingIn: false,
@@ -74,10 +75,6 @@ export default class Login extends BaseScreen<Props, State> {
       hidePassword: true,
       showNoTenantFoundDialog: false
     };
- console.log('tenantSubDomain:', this.state);
-//   console.log('props.route:', this.props.route);
-
-//  this.initializeAsyncData();
   }
 
   public setState = (
@@ -87,72 +84,35 @@ export default class Login extends BaseScreen<Props, State> {
     super.setState(state, callback);
   };
 
-private async initializeAsyncData() {
-  try {
-     const newTenant: any = {
-         endpoint: {
-           endpoint: "https://chargeq.energy",
-           id: "127.0.0.1:8080",
-           name: "localhost"
-         },
-         name: "demo",
-         subdomain: "demo"
-       };
-    console.log(newTenant, 'nt');
-
-    // Assume tenants is already declared somewhere (e.g., global or state variable)
-    this.tenants.push(newTenant);
-    await SecuredStorage.saveTenants(this.tenants);
-    // Update the state after the async operation is completed
-    this.setState({ loading: false });
-
-  } catch (error) {
-    console.error('Error while initializing async data:', error);
-    // Handle error and potentially update the state
-  }
-}
-
   public async componentDidMount() {
     await super.componentDidMount();
-    await this.initializeAsyncData();
-//     const newTenant: TenantConnection = {"endpoint": "http://demo.chargeq.energy", "id": "127.0.0.1:8080", "name": "localhost"};
-//     this.tenants.push(newTenant);
-//     await SecuredStorage.saveTenants(this.tenants);
-
-    let email = (this.state.email = '');
-    let password = (this.state.password = '');
+//     let email = (this.state.email = '');
+//     let password = (this.state.password = '');
     let tenant: TenantConnection;
     // Get tenants
-    this.tenants = await this.centralServerProvider.getTenants();
-    console.log(tenant, 'tennn');
-    if (Utils.isEmptyArray(this.tenants)) {
-        console.log('reached here');
-      this.setState({ showNoTenantFoundDialog: true });
-    }
+//     this.tenants = await this.centralServerProvider.getTenants();
+//     if (Utils.isEmptyArray(this.tenants)) {
+//       this.setState({ showNoTenantFoundDialog: true });
+//     }
     // Check if sub-domain is provided
     if (!this.state.tenantSubDomain) {
-         console.log('reached here2');
-      // Not provided: Use last saved connexion infon
-      const userCredentials = await SecuredStorage.getUserCredentials();
-      if (userCredentials) {
-        tenant = await this.centralServerProvider.getTenant(userCredentials.tenantSubDomain);
-        email = userCredentials.email;
-        password = userCredentials.password;
-
-      }
+      // Not provided: Use last saved connexion info
+//       const userCredentials = await SecuredStorage.getUserCredentials();
+//       if (userCredentials) {
+//         tenant = await this.centralServerProvider.getTenant(userCredentials.tenantSubDomain);
+//         email = userCredentials.email;
+//         password = userCredentials.password;
+//       }
     } else {
-         console.log( this.state.tenantSubDomain , 'reached here3');
       // Get the Tenant
       tenant = await this.centralServerProvider.getTenant(this.state.tenantSubDomain);
-//         tenant = await this.centralServerProvider.getTenant(this.tenant);
-      console.log(tenant, 'tttt');
       // Get user connection
       if (tenant) {
-        const userCredentials = await SecuredStorage.getUserCredentials(tenant.subdomain);
-        if (userCredentials) {
-          email = userCredentials.email;
-          password = userCredentials.password;
-        }
+//         const userCredentials = await SecuredStorage.getUserCredentials(tenant.subdomain);
+//         if (userCredentials) {
+//           email = userCredentials.email;
+//           password = userCredentials.password;
+//         }
       }
     }
     // Set logo
@@ -160,8 +120,8 @@ private async initializeAsyncData() {
     // Set
     this.setState(
       {
-        email,
-        password,
+//         email,
+//         password,
         tenantName: tenant?.endpoint?.name ? tenant.name : I18n.t('authentication.tenant'),
         tenantSubDomain: tenant?.endpoint?.name ? tenant.subdomain : null,
         loading: false
@@ -195,46 +155,104 @@ private async initializeAsyncData() {
   }
 
   public async componentDidFocus(): Promise<void> {
-    super.componentDidFocus();
-    const tenantSubDomain = Utils.getParamFromNavigation(this.props.route, 'tenantSubDomain', this.state.tenantSubDomain) as string;
-    if (tenantSubDomain !== this.state.tenantSubDomain) {
-      // Check if current Tenant selection is still valid (handle delete tenant use case)
-      if (tenantSubDomain) {
-        // Get the current Tenant
-        const tenant = await this.centralServerProvider.getTenant(tenantSubDomain);
-        if (!tenant?.endpoint?.name) {
-          // Refresh
-          this.tenants = await this.centralServerProvider.getTenants();
-          this.setState({
-            tenantSubDomain: null,
-            tenantLogo: null,
-            tenantName: I18n.t('authentication.tenant'),
-            email: null,
-            password: null
-          });
-        } else {
-          // Set logo
-          await this.setTenantLogo(tenant);
-          this.setState({
-            tenantSubDomain,
-            tenantName: tenant.name
-          });
+//     super.componentDidFocus();
+//     const tenantSubDomain = Utils.getParamFromNavigation(this.props.route, 'tenantSubDomain', this.state.tenantSubDomain) as string;
+//     if (tenantSubDomain !== this.state.tenantSubDomain) {
+//       // Check if current Tenant selection is still valid (handle delete tenant use case)
+//       if (tenantSubDomain) {
+//         // Get the current Tenant
+//         const tenant = await this.centralServerProvider.getTenant(tenantSubDomain);
+//         if (!tenant?.endpoint?.name) {
+//           // Refresh
+//           this.tenants = await this.centralServerProvider.getTenants();
+//           this.setState({
+//             tenantSubDomain: null,
+//             tenantLogo: null,
+//             tenantName: I18n.t('authentication.tenant'),
+//             email: null,
+//             password: null
+//           });
+//         } else {
+//           // Set logo
+//           await this.setTenantLogo(tenant);
+//           this.setState({
+//             tenantSubDomain,
+//             tenantName: tenant.name
+//           });
+//         }
+//       }
+//     }
+  }
+
+
+   public sendOtp = async () => {
+      // Check field
+      console.log('heelllelele ayush');
+      if (this.isFormValid()) {
+        const { mobile, eula, tenantSubDomain } = this.state;
+        try {
+          // Loading
+          this.setState({ loggingIn: true } as State);
+          // Login
+          await this.centralServerProvider.sendOtp(mobile, eula, tenantSubDomain);
+          // Login Success
+          this.setState({ loggingIn: false });
+          this.setState({ sentOtp: true })
+          // Navigate
+//           this.authService?.handleSignIn();
+        } catch (error) {
+          console.log(error);
+          // Login failed
+          this.setState({ loggingIn: false });
+          // Check request?
+          if (error.request) {
+            // Show error
+            switch (error.request.status) {
+              // Unknown Email
+              case StatusCodes.NOT_FOUND:
+                Message.showError(I18n.t('authentication.wrongEmailOrPassword'));
+                break;
+              // Account is locked
+              case HTTPError.USER_ACCOUNT_LOCKED_ERROR:
+                Message.showError(I18n.t('authentication.accountLocked'));
+                break;
+              // Account not Active
+              case HTTPError.USER_ACCOUNT_INACTIVE_ERROR:
+                Message.showError(I18n.t('authentication.accountNotActive'));
+                break;
+              // API User
+              case HTTPError.TECHNICAL_USER_CANNOT_LOG_TO_UI_ERROR:
+                Message.showError(I18n.t('authentication.technicalUserCannotLoginToUI'));
+                break;
+              // Account Pending
+              case HTTPError.USER_ACCOUNT_PENDING_ERROR:
+                Message.showError(I18n.t('authentication.accountPending'));
+                break;
+              // Eula no accepted
+              case HTTPError.USER_EULA_ERROR:
+                Message.showError(I18n.t('authentication.eulaNotAccepted'));
+                break;
+              default:
+                // Other common Error
+//                 await Utils.handleHttpUnexpectedError(this.centralServerProvider, error, 'authentication.loginUnexpectedError', null, null, async () => this.login());
+            }
+          }
         }
       }
-    }
-  }
+    };
+
+
 
   public login = async () => {
     // Check field
     if (this.isFormValid()) {
-      const { password, email, eula, tenantSubDomain } = this.state;
+      const { mobile, otp, eula, tenantSubDomain } = this.state;
       try {
         // Loading
         this.setState({ loggingIn: true } as State);
         // Login
-        await this.centralServerProvider.login(email, password, eula, tenantSubDomain);
+        await this.centralServerProvider.verifyOtp(mobile, otp, eula, tenantSubDomain);
         // Login Success
-
         this.setState({ loggingIn: false });
         // Navigate
         this.authService?.handleSignIn();
@@ -315,29 +333,12 @@ private async initializeAsyncData() {
     }
   }
 
-  public loginWithOtp(): void {
-      const navigation = this.props.navigation;
-      // Tenant selected?
-      if (this.state.tenantSubDomain) {
-        navigation.navigate('LoginWithOtp', {
-          params: {
-            tenantSubDomain: this.state.tenantSubDomain,
-//             params: { tenantSubDomain: response.tenant, hash: response.hash }
-//             email: this.state.email
-          }
-        });
-      } else {
-        // Error
-        Message.showError(I18n.t('authentication.mustSelectTenant'));
-      }
-    }
-
   public render(): React.ReactElement {
     const style = computeStyleSheet();
     const formStyle = computeFormStyleSheet();
     const commonColor = Utils.getCurrentCommonColor();
     const navigation = this.props.navigation;
-    const {tenantLogo, eula, loggingIn, loading, hidePassword, showNoTenantFoundDialog, tenantName, password, email, tenantSubDomain } = this.state;
+    const {tenantLogo, eula, loggingIn, loading, hidePassword, showNoTenantFoundDialog,sentOtp, mobile,tenantName, otp, email, tenantSubDomain } = this.state;
     // Render
     return loading ? (
       <Spinner style={formStyle.spinner} color="grey" />
@@ -348,57 +349,63 @@ private async initializeAsyncData() {
           return (
             <SafeAreaView style={style.container}>
               {showNoTenantFoundDialog && this.renderNoTenantFoundDialog()}
+              <AuthHeader navigation={this.props.navigation} tenantLogo={tenantLogo} />
 
+              {/*
               <TouchableOpacity onPress={() => this.goToTenants()} style={style.tenantSelectionContainer}>
-             {/* <AuthHeader navigation={this.props.navigation} tenantName={tenantName} tenantLogo={tenantLogo} />   ayush change */}
+
                 <Icon style={style.dropdownIcon} size={scale(25)} as={MaterialIcons} name={'arrow-drop-down'} />
-             {/*    <Icon style={style.dropdownIcon} size={scale(25)} as={MaterialIcons} name={'arrow-drop-down'} /> ayush change */}
-              </TouchableOpacity>
-               <AuthHeader navigation={this.props.navigation} tenantLogo={tenantLogo} />
+              </TouchableOpacity> */}
               <KeyboardAwareScrollView keyboardShouldPersistTaps={'handled'} bounces={false} persistentScrollbar={true} style={style.scrollView} contentContainerStyle={style.scrollViewContentContainer}>
                 <Input
-                  leftIcon={<Icon size={scale(20)} name="email" as={MaterialCommunityIcons} style={formStyle.inputIcon} />}
+                  leftIcon={<Icon size={scale(20)} name='mobile' style={formStyle.inputIcon} />}
                   containerStyle={formStyle.inputContainer}
                   inputStyle={formStyle.inputText}
                   inputContainerStyle={formStyle.inputTextContainer}
-                  value={email}
-                  placeholder={I18n.t('authentication.email')}
+                  value={mobile}
+                  placeholder={I18n.t('authentication.mobile')}
                   placeholderTextColor={commonColor.placeholderTextColor}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  keyboardType={'email-address'}
-                  textContentType={'emailAddress'}
+                  keyboardType={'mobile'}
+                  textContentType={'mobile'}
                   returnKeyType="next"
                   onSubmitEditing={() => this.passwordInput.focus()}
                   renderErrorMessage={false}
-                  onChangeText={(newEmail: string) => this.setState({email: newEmail})}
+                  onChangeText={(newMobile: string) => this.setState({mobile: newMobile})}
                 />
-                <Input
-                  ref={(ref: TextInput) => (this.passwordInput = ref)}
-                  leftIcon={<Icon size={scale(20)} name="lock" as={MaterialCommunityIcons} style={formStyle.inputIcon} />}
-                  rightIcon={<Icon
-                    name={hidePassword ? 'eye' : 'eye-off'}
-                    size={scale(20)}
-                    as={Ionicons}
-                    onPress={() => this.setState({ hidePassword: !hidePassword })}
-                    style={formStyle.inputIcon}
-                  />}
-                  containerStyle={formStyle.inputContainer}
-                  inputStyle={formStyle.inputText}
-                  inputContainerStyle={formStyle.inputTextContainer}
-                  value={password}
-                  placeholder={I18n.t('authentication.password')}
-                  placeholderTextColor={commonColor.placeholderTextColor}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  secureTextEntry={hidePassword}
-                  textContentType={'password'}
-                  keyboardType={'default'}
-                  returnKeyType={'done'}
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                  renderErrorMessage={false}
-                  onChangeText={(newPassword: string) => this.setState({password: newPassword})}
-                />
+                {
+                    sentOtp && (
+                        <Input
+                                          ref={(ref: TextInput) => (this.passwordInput = ref)}
+                                          leftIcon={<Icon size={scale(20)} name="lock" as={MaterialCommunityIcons} style={formStyle.inputIcon} />}
+                                          rightIcon={<Icon
+                                            name={hidePassword ? 'eye' : 'eye-off'}
+                                            size={scale(20)}
+                                            as={Ionicons}
+                                            onPress={() => this.setState({ hidePassword: !hidePassword })}
+                                            style={formStyle.inputIcon}
+                                          />}
+                                          containerStyle={formStyle.inputContainer}
+                                          inputStyle={formStyle.inputText}
+                                          inputContainerStyle={formStyle.inputTextContainer}
+                                          value={otp}
+                                          placeholder={I18n.t('authentication.password')}
+                                          placeholderTextColor={commonColor.placeholderTextColor}
+                                          autoCapitalize="none"
+                                          autoCorrect={false}
+                                          secureTextEntry={hidePassword}
+                                          textContentType={'otp'}
+                                          keyboardType={'default'}
+                                          returnKeyType={'done'}
+                                          onSubmitEditing={() => Keyboard.dismiss()}
+                                          renderErrorMessage={false}
+                                          onChangeText={(newOtp: string) => this.setState({otp: newOtp})}
+                                        />
+
+                        )
+
+                }
                 <CheckBox
                   containerStyle={[formStyle.checkboxContainer, style.checkboxContainer]}
                   textStyle={{backgroundColor: 'transparent'}}
@@ -415,7 +422,7 @@ private async initializeAsyncData() {
                   uncheckedIcon={<Icon size={scale(25)} name="checkbox-blank-outline" as={MaterialCommunityIcons} style={formStyle.inputIcon} />}
                   checkedIcon={<Icon size={scale(25)} name="checkbox-outline" as={MaterialCommunityIcons} style={formStyle.inputIcon} />}
                 />
-                <Button
+               { sentOtp &&  ( <Button
                   title={I18n.t('authentication.signIn')}
                   titleStyle={formStyle.buttonText}
                   disabled={!this.isFormValid()}
@@ -426,18 +433,27 @@ private async initializeAsyncData() {
                   loading={loggingIn}
                   loadingProps={{color: commonColor.light}}
                   onPress={() => void this.login()}
-                />
-                <TouchableOpacity style={style.forgotPasswordContainer} onPress={() => this.loginWithOtp()}>
-   <Text style={style.forgotPasswordText}>
-                                                    {I18n.t('authentication.forgotYourPassword')}
-                                                  </Text>
-                               </TouchableOpacity>
-                <TouchableOpacity style={style.forgotPasswordContainer} onPress={() => this.forgotPassword()}>
+                />)}
+                { !sentOtp && (
+                    <Button
+                                                      title={I18n.t('sentOtp')}
+                                                      titleStyle={formStyle.buttonText}
+//                                                       disabled={!this.isFormValid()}
+                                                      disabledStyle={formStyle.buttonDisabled}
+                                                      disabledTitleStyle={formStyle.buttonTextDisabled}
+                                                      containerStyle={formStyle.buttonContainer}
+                                                      buttonStyle={formStyle.button}
+                                                      loading={loggingIn}
+                                                      loadingProps={{color: commonColor.light}}
+                                                      onPress={() => void this.sendOtp()}
+                                                    />
+                    )}
 
+              {/*  <TouchableOpacity style={style.forgotPasswordContainer} onPress={() => this.forgotPassword()}>
                   <Text style={style.forgotPasswordText}>
                     {I18n.t('authentication.forgotYourPassword')}
                   </Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
                 <View style={style.buttonSeparatorLine} />
                 <Button
                   title={I18n.t('authentication.signUp')}
@@ -460,36 +476,36 @@ private async initializeAsyncData() {
     );
   }
 
-  private goToTenants(openQRCode = false) {
-    this.props.navigation.navigate('Tenants', {
-      key: `${Utils.randomNumber()}`,
-      openQRCode
-    });
-  }
+//   private goToTenants(openQRCode = false) {
+//     this.props.navigation.navigate('Tenants', {
+//       key: `${Utils.randomNumber()}`,
+//       openQRCode
+//     });
+//   }
 
   private isFormValid(): boolean {
-    const {tenantSubDomain, email, password, eula} = this.state;
-    return !!tenantSubDomain && !!email && !!password && eula;
+    const {tenantSubDomain, mobile, password, eula} = this.state;
+    return !!tenantSubDomain && !!mobile  && eula;
   }
 
-  private renderNoTenantFoundDialog() {
-    const modalCommonStyle = computeModalCommonStyle();
-    return (
-      <DialogModal
-        title={I18n.t('authentication.noTenantFoundTitle')}
-        description={I18n.t('authentication.noTenantFoundMessage')}
-        withCancel={true}
-        close={() => this.setState({ showNoTenantFoundDialog: false })}
-        withCloseButton={true}
-        buttons={[
-          {
-            text: I18n.t('general.yes'),
-            action: () => this.setState({ showNoTenantFoundDialog: false }, () => this.goToTenants(true)),
-            buttonTextStyle: modalCommonStyle.primaryButtonText,
-            buttonStyle: modalCommonStyle.primaryButton
-          }
-        ]}
-      />
-    );
-  }
+//   private renderNoTenantFoundDialog() {
+//     const modalCommonStyle = computeModalCommonStyle();
+//     return (
+//       <DialogModal
+//         title={I18n.t('authentication.noTenantFoundTitle')}
+//         description={I18n.t('authentication.noTenantFoundMessage')}
+//         withCancel={true}
+//         close={() => this.setState({ showNoTenantFoundDialog: false })}
+//         withCloseButton={true}
+//         buttons={[
+//           {
+//             text: I18n.t('general.yes'),
+//             action: () => this.setState({ showNoTenantFoundDialog: false }, () => this.goToTenants(true)),
+//             buttonTextStyle: modalCommonStyle.primaryButtonText,
+//             buttonStyle: modalCommonStyle.primaryButton
+//           }
+//         ]}
+//       />
+//     );
+//   }
 }

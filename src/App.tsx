@@ -13,7 +13,6 @@ import {Icon, NativeBaseProvider} from 'native-base';
 import React, {useEffect, useState} from 'react';
 import {Appearance, ColorSchemeName, NativeEventSubscription, StatusBar, Text} from 'react-native';
 import { scale } from 'react-native-size-matters';
-
 import DeepLinkingManager from './deeplinking/DeepLinkingManager';
 import I18nManager from './I18n/I18nManager';
 import LocationManager from './location/LocationManager';
@@ -26,6 +25,7 @@ import Login from './screens/auth/login/Login';
 import ResetPassword from './screens/auth/reset-password/ResetPassword';
 import RetrievePassword from './screens/auth/retrieve-password/RetrievePassword';
 import SignUp from './screens/auth/sign-up/SignUp';
+import LoginWithOtp from './screens/auth/login-with-otp/LoginWithOtp';
 import Cars from './screens/cars/Cars';
 import ChargingStationActions from './screens/charging-stations/actions/ChargingStationActions';
 import ChargingStationConnectorDetails from './screens/charging-stations/connector-details/ChargingStationConnectorDetails';
@@ -70,6 +70,9 @@ import Loading from './screens/loading/Loading';
 import {Notification} from './types/UserNotifications';
 import Configuration from './config/Configuration';
 import {RootSiblingParent} from 'react-native-root-siblings';
+
+import Wallet from './screens/wallet/wallet';
+// import Wallet from './screens/wallet/Wallet';
 
 // Init i18n
 I18nManager.initialize();
@@ -135,6 +138,7 @@ function AuthNavigator(props: BaseProps) {
       <AuthStack.Screen name="TenantQrCode" component={TenantQrCode} initialParams={props?.route?.params?.params} />
       <AuthStack.Screen name="Eula" component={Eula} initialParams={props?.route?.params?.params} />
       <AuthStack.Screen name="SignUp" component={SignUp} initialParams={props?.route?.params?.params} />
+      <AuthStack.Screen name="LoginWithOtp" component={LoginWithOtp} initialParams={props?.route?.params?.params} />
       <AuthStack.Screen name="ResetPassword" component={ResetPassword} initialParams={props?.route?.params?.params} />
       <AuthStack.Screen name="RetrievePassword" component={RetrievePassword} initialParams={props?.route?.params?.params} />
     </AuthStack.Navigator>
@@ -493,6 +497,18 @@ function SettingsNavigator(props: BaseProps) {
   );
 }
 
+function WalletNavigator(props: BaseProps) {
+  return (
+    <SettingsStack.Navigator initialRouteName="Settings" screenOptions={{ headerShown: false }}>
+      <SettingsStack.Screen
+        name="Wallet"
+        component={Wallet}
+        initialParams={props?.route?.params?.params}
+      />
+    </SettingsStack.Navigator>
+  );
+}
+
 function AppDrawerNavigator(props: BaseProps) {
   const commonColors = Utils.getCurrentCommonColor();
   const [centralServerProvider, setCentralServerProvider] = useState<CentralServerProvider>();
@@ -539,6 +555,15 @@ function AppDrawerNavigator(props: BaseProps) {
         />
       </AppDrawer.Group>
       <AppDrawer.Group screenOptions={{drawerSection: 1}}>
+         <AppDrawer.Screen
+                name="WalletNavigator"
+                component={WalletNavigator}
+                options={{
+                  drawerLabel: I18n.t('sidebar.wallet'),
+                  drawerIcon: () => <Icon color={commonColors.textColor} size={scale(22)} as={MaterialIcons} name="wallet-balanced" />
+                }}
+                initialParams={props?.route?.params?.params}
+         />
         <AppDrawer.Screen
           name="ChargingStationsNavigator"
           component={ChargingStationsNavigator}
